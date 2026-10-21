@@ -1,4 +1,0 @@
-# Leave secret key blank to run in MOCK payment mode (demo-friendly)
-stripe.secret.key=
-stripe.publishable.key=
-stripe.currency=inr
