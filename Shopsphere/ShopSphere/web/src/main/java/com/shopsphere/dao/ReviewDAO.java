@@ -1,0 +1,13 @@
+package com.shopsphere.dao;
+import com.shopsphere.model.Review;
+import com.shopsphere.util.DBConnection;
+import java.sql.*;
+import java.util.*;
+public class ReviewDAO {
+    public List<Review> findByProductId(Long prodId) { List<Review> l = new ArrayList<>(); try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT r.*, u.name AS user_name FROM reviews r JOIN users u ON r.user_id=u.id WHERE r.product_id=? ORDER BY r.id DESC")) { p.setLong(1, prodId); try (ResultSet r = p.executeQuery()) { while (r.next()) l.add(map(r)); } } catch (SQLException e) {} return l; }
+    public boolean hasUserReviewedProduct(Long userId, Long prodId) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT 1 FROM reviews WHERE user_id=? AND product_id=?")) { p.setLong(1, userId); p.setLong(2, prodId); try (ResultSet r = p.executeQuery()) { return r.next(); } } catch (SQLException e) { return false; } }
+    public boolean create(Review rv) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO reviews (user_id,product_id,rating,review_text) VALUES (?,?,?,?)", Statement.RETURN_GENERATED_KEYS)) { p.setLong(1, rv.getUserId()); p.setLong(2, rv.getProductId()); p.setInt(3, rv.getRating()); p.setString(4, rv.getReviewText()); if (p.executeUpdate() > 0) { try (ResultSet k = p.getGeneratedKeys()) { if (k.next()) rv.setId(k.getLong(1)); } return true; } } catch (SQLException e) {} return false; }
+    public boolean delete(Long id) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("DELETE FROM reviews WHERE id=?")) { p.setLong(1, id); return p.executeUpdate() > 0; } catch (SQLException e) { return false; } }
+    public List<Review> findAllForAdmin() { List<Review> l = new ArrayList<>(); try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT r.*, u.name AS user_name, p.name AS product_name FROM reviews r JOIN users u ON r.user_id=u.id JOIN products p ON r.product_id=p.id ORDER BY r.id DESC"); ResultSet r = p.executeQuery()) { while (r.next()) { Review rv = map(r); try { rv.setProductName(r.getString("product_name")); } catch (SQLException e) {} l.add(rv); } } catch (SQLException e) {} return l; }
+    private Review map(ResultSet r) throws SQLException { Review rv = new Review(); rv.setId(r.getLong("id")); rv.setUserId(r.getLong("user_id")); try { rv.setUserName(r.getString("user_name")); } catch (SQLException e) {} rv.setProductId(r.getLong("product_id")); rv.setRating(r.getInt("rating")); rv.setReviewText(r.getString("review_text")); rv.setCreatedAt(r.getTimestamp("created_at")); return rv; }
+}
