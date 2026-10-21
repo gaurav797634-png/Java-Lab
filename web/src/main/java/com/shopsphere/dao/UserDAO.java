@@ -1,0 +1,19 @@
+package com.shopsphere.dao;
+import com.shopsphere.model.User;
+import com.shopsphere.util.DBConnection;
+import java.sql.*;
+import java.util.*;
+import java.util.logging.*;
+public class UserDAO {
+    private static final Logger LOGGER = Logger.getLogger(UserDAO.class.getName());
+    public User findById(Long id) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM users WHERE id=?")) { p.setLong(1, id); try (ResultSet r = p.executeQuery()) { return r.next() ? mapRow(r) : null; } } catch (SQLException e) { LOGGER.log(Level.SEVERE, "err", e); return null; } }
+    public User findByEmail(String email) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM users WHERE LOWER(email)=LOWER(?)")) { p.setString(1, email); try (ResultSet r = p.executeQuery()) { return r.next() ? mapRow(r) : null; } } catch (SQLException e) { return null; } }
+    public boolean emailExists(String email) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT 1 FROM users WHERE LOWER(email)=LOWER(?)")) { p.setString(1, email); try (ResultSet r = p.executeQuery()) { return r.next(); } } catch (SQLException e) { return false; } }
+    public boolean create(User u) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("INSERT INTO users (name,email,password_hash,phone,role,status) VALUES (?,?,?,?,?,?)", Statement.RETURN_GENERATED_KEYS)) { p.setString(1, u.getName()); p.setString(2, u.getEmail().toLowerCase()); p.setString(3, u.getPasswordHash()); p.setString(4, u.getPhone()); p.setString(5, u.getRole().name()); p.setString(6, u.getStatus().name()); if (p.executeUpdate() > 0) { try (ResultSet k = p.getGeneratedKeys()) { if (k.next()) u.setId(k.getLong(1)); } return true; } } catch (SQLException e) { LOGGER.log(Level.SEVERE, "err", e); } return false; }
+    public boolean updateProfile(User u) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE users SET name=?, phone=? WHERE id=?")) { p.setString(1, u.getName()); p.setString(2, u.getPhone()); p.setLong(3, u.getId()); return p.executeUpdate() > 0; } catch (SQLException e) { return false; } }
+    public boolean updatePassword(Long id, String hash) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE users SET password_hash=? WHERE id=?")) { p.setString(1, hash); p.setLong(2, id); return p.executeUpdate() > 0; } catch (SQLException e) { return false; } }
+    public boolean updateStatus(Long id, User.Status s) { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE users SET status=? WHERE id=?")) { p.setString(1, s.name()); p.setLong(2, id); return p.executeUpdate() > 0; } catch (SQLException e) { return false; } }
+    public List<User> findAll() { List<User> l = new ArrayList<>(); try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT * FROM users ORDER BY id DESC"); ResultSet r = p.executeQuery()) { while (r.next()) l.add(mapRow(r)); } catch (SQLException e) {} return l; }
+    public int countTotalUsers() { try (Connection c = DBConnection.getConnection(); PreparedStatement p = c.prepareStatement("SELECT COUNT(*) FROM users WHERE role='CUSTOMER'"); ResultSet r = p.executeQuery()) { if (r.next()) return r.getInt(1); } catch (SQLException e) {} return 0; }
+    private User mapRow(ResultSet r) throws SQLException { User u = new User(); u.setId(r.getLong("id")); u.setName(r.getString("name")); u.setEmail(r.getString("email")); u.setPasswordHash(r.getString("password_hash")); u.setPhone(r.getString("phone")); u.setRole(User.Role.valueOf(r.getString("role"))); u.setStatus(User.Status.valueOf(r.getString("status"))); u.setCreatedAt(r.getTimestamp("created_at")); return u; }
+}
